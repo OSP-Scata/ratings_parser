@@ -1,0 +1,12 @@
+# Ignored files
+.idea/
+build/
+dist/
+*.csv
+*.xlsx
+*.bat
+*.spec
+*.exe
+*.7z
+google_test.py
+ratings_parse_test.py
