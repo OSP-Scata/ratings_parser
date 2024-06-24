@@ -1,2 +1,2 @@
-# ratings_parser
- A parser of rates&reviews numbers from different online maps
+# Парсер рейтингов с карт
+Скрипт, который парсит рейтинг организации и количество отзывов/оценок (не сами отзывы!). Ссылки берёт из файла Excel.
