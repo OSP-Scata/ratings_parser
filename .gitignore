@@ -11,5 +11,3 @@ __pycache__/
 *.7z
 *.zip
 *.bat
-google_test.py
-ratings_parse_test.py
