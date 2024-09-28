@@ -2,11 +2,14 @@
 .idea/
 build/
 dist/
+__pycache__/
 *.csv
 *.xlsx
 *.bat
 *.spec
 *.exe
 *.7z
+*.zip
+*.bat
 google_test.py
 ratings_parse_test.py

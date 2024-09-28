@@ -1,59 +1,39 @@
 # Начало: импорты, функции, глобальные переменные
 
 import pandas as pd
-import requests
-import re
 
 from tqdm import tqdm
 from time import sleep, strftime
 from random import randint
-from bs4 import BeautifulSoup
 from yandex_reviews_parser.utils import YandexParser
+from parsers import *
 
 import warnings
 
 warnings.filterwarnings('ignore')
 
-headers = {"User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0"}
-session = requests.Session()  # Создаем сессию
-session.headers = headers  # Передать заголовок в сессию
-
-excel_file = 'Рейтинг клиник.xlsx'
+excel_file = 'workfiles/Внутр_Рейтинг клиник.xlsx'
 xl = pd.ExcelFile(excel_file)
 sheets = xl.sheet_names
 
+def prepare_dataframe(file, sheet, field1, field2, field3, field4, field5=None, field6=None):
+    print('Парсим', sheet)
+    df = pd.read_excel(file, sheet)
+    df.rename(columns={field1: field2}, inplace=True)
+    df.rename(columns={field3: field4}, inplace=True)
+    if field5 is not None and field6 is not None:
+        df.rename(columns={field5: field6}, inplace=True)
+        df = df[[field2, field4, field6]]
+    else:
+        df = df[[field2, field4]]
 
-def get_response(url):
-    response = session.get(url=url)
-    if response.status_code != 200:
-        print("Произошла ошибка запроса, код:", response.status_code)
-        print(response.reason)
-    return response
-
-
-def get_content(response, tag, parameter, name):
-    soup = BeautifulSoup(response.text, "lxml")
-    content = soup.find(tag, {parameter: name}).contents
-    return content
-
-
-def rating(data, tag1, tag2, parameter1, parameter2, name1, name2):
-    soup = BeautifulSoup(data, 'html.parser')
-    rate = soup.find(tag1, {parameter1: name1}).contents
-    ratings = soup.find(tag2, {parameter2: name2}).contents
-    return rate, ratings
-
+    df.drop(df.tail(4).index, inplace=True)
+    df[field4] = df[field4].str.strip()
+    df.dropna(inplace=True)
+    return df
 
 # Яндекс
-
-print('Парсим Яндекс.Карты...')
-df = pd.read_excel(excel_file, sheets[0])
-df.rename(columns={'Unnamed: 1': 'link'}, inplace=True)
-df_yandex = df[['Клиника', 'link']]
-df_yandex.rename(columns={'Клиника': 'clinic'}, inplace=True)
-df_yandex.drop(df.tail(4).index, inplace=True)
-df_yandex['link'] = df_yandex['link'].str.strip()
-
+df_yandex = prepare_dataframe(excel_file, sheets[0], 'Unnamed: 1', 'link', 'Клиника', 'clinic')
 links = df_yandex['link'].to_list()
 yandex_ids = []
 for link in links:
@@ -79,15 +59,7 @@ df_yandex['ratings'] = ratings
 df_yandex['reviews'] = reviews
 
 # 2GIS
-print('Парсим 2GIS...')
-df = pd.read_excel(excel_file, sheets[1])
-df.head()
-df_2gis = df[['Клиника', 'Ссылка']]
-df_2gis.rename(columns={'Клиника': 'clinic', 'Ссылка': 'link'}, inplace=True)
-df_2gis.drop(df.tail(4).index, inplace=True)
-df_2gis.dropna(inplace=True)
-df_2gis['link'] = df_2gis['link'].str.strip()
-
+df_2gis = prepare_dataframe(excel_file, sheets[1], 'Клиника', 'clinic', 'Ссылка', 'link')
 gis_urls = df_2gis['link'].to_list()
 rate_number = []
 rate_quantity = []
@@ -95,30 +67,23 @@ rate_quantity = []
 for url in tqdm(gis_urls):
     resp = get_response(url)
     content = get_content(resp, "div", "class", "_1pfef7u")
-    rate, ratings = rating(str(content), "div", "div", "class", "class", "_y10azs", "_jspzdm")
-    ratings = str(ratings[0]).split(' ')
-    rate_number.append(float(str(rate[0])))
-    rate_quantity.append(int(ratings[0]))
+    rate, ratings = rating(content, "div", "div", "class", "class", "_y10azs",
+                                "_jspzdm")
+    try:
+        ratings = str(ratings[0]).split(' ')
+        rate_number.append(float(str(rate[0])))
+        rate_quantity.append(int(ratings[0]))
+    except:
+        rate_number.append(-1)
+        rate_quantity.append(-1)
+
     sleep(randint(1, 3))
 
 df_2gis['rate_number'] = rate_number
 df_2gis['rate_quantity'] = rate_quantity
 
 # Google
-print('Парсим Google Maps...')
-df = pd.read_excel(excel_file, sheets[2])
-df.head()
-df_google = df[['Клиника', 'Ссылка']]
-df_google.rename(columns={'Клиника': 'clinic', 'Ссылка': 'link'}, inplace=True)
-df_google.drop(df.tail(5).index, inplace=True)
-df_google['link'] = df_google['link'].str.strip()
-
-
-def get_contents_google(response):
-    soup = BeautifulSoup(response.text, "lxml")
-    info = soup.find("script", text=re.compile("Отзывов"))
-    return info
-
+df_google = prepare_dataframe(excel_file, sheets[2], 'Клиника', 'clinic', 'Ссылка', 'link')
 
 google_urls = df_google['link'].to_list()
 g_rate_number = []
@@ -151,28 +116,8 @@ df_google['ratings'] = g_rate_quantity
 df_google['ratings'] = df_google['ratings'].astype(int)
 
 # Другие
-print('Парсим другие площадки (пока 3)...')
-df = pd.read_excel(excel_file, sheets[3])
-df_other = df[['Площадка', 'Клиника (при наличии)', 'Ссылка']]
-df_other.rename(columns={'Клиника (при наличии)': 'clinic', 'Ссылка': 'link', 'Площадка': 'platform'}, inplace=True)
-df_other.drop(df.tail(5).index, inplace=True)
-df_other['link'] = df_other['link'].str.strip()
-
-
-def extract_domain(url):
-    # Define a regular expression pattern for extracting the domain
-    pattern = r"(https?://)?(www\d?\.)?(?P<domain>[\w\.-]+\.\w+)(/\S*)?"
-    # Use re.match to search for the pattern at the beginning of the URL
-    match = re.match(pattern, url)
-    # Check if a match is found
-    if match:
-        # Extract the domain from the named group "domain"
-        domain = match.group("domain")
-        return domain
-    else:
-        pass
-
-
+df_other = prepare_dataframe(excel_file, sheets[3], 'Клиника (при наличии)', 'clinic', 'Ссылка',
+                             'link', 'Площадка', 'platform')
 other_urls = df_other['link'].dropna().to_list()
 
 domains = []
@@ -186,7 +131,6 @@ domains = dict.fromkeys(domains)
 for key, value in domains.items():
     urls = []
     for url in other_urls:
-        # print(extract_domain(url))
         if extract_domain(url) == key:
             urls.append(url)
         domains[key] = urls
@@ -197,8 +141,8 @@ zoon_ratings = []
 for url in tqdm(domains['zoon.ru']):
     parsed = get_response(url)
     parse = get_content(parsed, "div", "class", "service-action__item")
-    z_rate, z_ratings = rating(str(parse), "div", "a", "class", "class", "z-text--16 z-text--default z-text--bold",
-                               "z-text--16 z-text--dark-gray js-toggle-content")
+    z_rate, z_ratings = rating(parse, "div", "span", "class", "class",
+                               "z-text--16 z-text--default z-text--bold",None)
     zoon_rate.append(z_rate)
     string = str(z_ratings[0])
     string = string.strip('\n\t')
@@ -226,8 +170,8 @@ pd_ratings = []
 
 for url in tqdm(domains['prodoctorov.ru']):
     parsed = get_response(url)
-    parse = get_content(parsed, "div", "id", "content")
-    rate, ratings = rating(str(parse), "div", "span", "class", "class",
+    parse = get_content(str(parsed), "div", "id", "content")
+    rate, ratings = rating(parse, "div", "span", "class", "class",
                            "ui-text ui-text_h5 ui-kit-color-text font-weight-medium mr-2", "b-box-rating__text")
     pd_rates.append(float(str(rate[0]).strip('\n ')))
     pd_ratings.append(int(str(ratings[0]).strip('\n ').split(' ')[0]))
@@ -284,4 +228,4 @@ df_merged = pd.concat(
 
 df_final = pd.concat([df_merged, df_other], axis=1)
 date_str = strftime("%Y-%m-%d")
-df_final.to_csv(f"parsed_{date_str}.csv", index=False)
+df_final.to_csv(f"workfiles/parsed_{date_str}.csv", index=False)
