@@ -1,10 +1,12 @@
-import requests
 import re
+
+import requests
 from bs4 import BeautifulSoup
 
 headers = {"User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0"}
 session = requests.Session()  # Создаем сессию
 session.headers = headers  # Передать заголовок в сессию
+
 
 def extract_domain(url):
     # Define a regular expression pattern for extracting the domain
@@ -19,12 +21,14 @@ def extract_domain(url):
     else:
         pass
 
+
 def get_response(url):
     response = session.get(url=url)
     if response.status_code != 200:
         print("Произошла ошибка запроса, код:", response.status_code)
         print(response.reason)
     return response.text
+
 
 def get_content(response, tag, parameter, name):
     soup = BeautifulSoup(response, "html.parser")
@@ -34,6 +38,7 @@ def get_content(response, tag, parameter, name):
     except:
         return None
 
+
 def rating(data, tag1, tag2, parameter1, parameter2, name1, name2):
     soup = BeautifulSoup(str(data), 'html.parser')
     try:
@@ -42,6 +47,7 @@ def rating(data, tag1, tag2, parameter1, parameter2, name1, name2):
         return rate, ratings
     except:
         return None, None
+
 
 def get_contents_google(response):
     soup = BeautifulSoup(response, "lxml")

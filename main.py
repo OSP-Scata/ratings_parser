@@ -1,14 +1,14 @@
 # Начало: импорты, функции, глобальные переменные
 
-import pandas as pd
-
-from tqdm import tqdm
-from time import sleep, strftime
-from random import randint
-from yandex_reviews_parser.utils import YandexParser
-from parsers import *
-
 import warnings
+from random import randint
+from time import sleep, strftime
+
+import pandas as pd
+from tqdm import tqdm
+from yandex_reviews_parser.utils import YandexParser
+
+from parsers import *
 
 warnings.filterwarnings('ignore')
 
@@ -16,9 +16,10 @@ excel_file = 'workfiles/Внутр_Рейтинг клиник.xlsx'
 xl = pd.ExcelFile(excel_file)
 sheets = xl.sheet_names
 
+
 def prepare_dataframe(file, sheet, field1, field2, field3, field4, field5=None, field6=None):
     print('Парсим', sheet)
-    df = pd.read_excel(file, sheet)
+    df = pd.read_excel(file, sheet_name=sheet)
     df.rename(columns={field1: field2}, inplace=True)
     df.rename(columns={field3: field4}, inplace=True)
     if field5 is not None and field6 is not None:
@@ -29,8 +30,10 @@ def prepare_dataframe(file, sheet, field1, field2, field3, field4, field5=None, 
 
     df.drop(df.tail(4).index, inplace=True)
     df[field4] = df[field4].str.strip()
-    df.dropna(inplace=True)
+    if sheet != sheets[3]:
+        df.dropna(inplace=True)
     return df
+
 
 # Яндекс
 df_yandex = prepare_dataframe(excel_file, sheets[0], 'Unnamed: 1', 'link', 'Клиника', 'clinic')
@@ -50,9 +53,14 @@ rate = []
 ratings = []
 reviews = []
 for i in range(len(parsed)):
-    rate.append(parsed[i]['company_info']['rating'])
-    ratings.append(parsed[i]['company_info']['count_rating'])
-    reviews.append(len(parsed[i]['company_reviews']))
+    try:
+        rate.append(parsed[i]['company_info']['rating'])
+        ratings.append(parsed[i]['company_info']['count_rating'])
+        reviews.append(len(parsed[i]['company_reviews']))
+    except KeyError:
+        rate.append(-1)
+        ratings.append(-1)
+        reviews.append(-1)
 
 df_yandex['rate'] = rate
 df_yandex['ratings'] = ratings
@@ -65,22 +73,26 @@ rate_number = []
 rate_quantity = []
 
 for url in tqdm(gis_urls):
-    resp = get_response(url)
-    content = get_content(resp, "div", "class", "_1pfef7u")
-    rate, ratings = rating(content, "div", "div", "class", "class", "_y10azs",
-                                "_jspzdm")
-    try:
-        ratings = str(ratings[0]).split(' ')
-        rate_number.append(float(str(rate[0])))
-        rate_quantity.append(int(ratings[0]))
-    except:
-        rate_number.append(-1)
-        rate_quantity.append(-1)
+    if url:
+        try:
+            resp = get_response(url)
+            content = get_content(resp, "div", "class", "_1pfef7u")
+            rate, ratings = rating(content, "div", "div", "class", "class", "_y10azs",
+                           "_jspzdm")
+            try:
+                ratings = str(ratings[0]).split(' ')
+                rate_number.append(float(str(rate[0])))
+                rate_quantity.append(int(ratings[0]))
+            except:
+                rate_number.append(-1)
+                rate_quantity.append(-1)
+        except:
+            pass
 
     sleep(randint(1, 3))
 
-df_2gis['rate_number'] = rate_number
-df_2gis['rate_quantity'] = rate_quantity
+df_2gis['rate_number'] = pd.Series(rate_number)
+df_2gis['rate_quantity'] = pd.Series(rate_quantity)
 
 # Google
 df_google = prepare_dataframe(excel_file, sheets[2], 'Клиника', 'clinic', 'Ссылка', 'link')
@@ -94,7 +106,7 @@ for url in tqdm(google_urls):
     resp = get_response(url)
     content = str(get_contents_google(resp))
     lookup = [i.start() for i in re.finditer('Отзывов', content)]
-    piece = content[lookup[0]: lookup[0]+100]
+    piece = content[lookup[0]: lookup[0] + 100]
     string = piece.replace('\\', '')
     string = string.replace(']', '')
     parsed_list = string.split(',')
@@ -116,8 +128,8 @@ df_google['ratings'] = g_rate_quantity
 df_google['ratings'] = df_google['ratings'].astype(int)
 
 # Другие
-df_other = prepare_dataframe(excel_file, sheets[3], 'Клиника (при наличии)', 'clinic', 'Ссылка',
-                             'link', 'Площадка', 'platform')
+df_other = prepare_dataframe(excel_file, sheets[3], 'Площадка', 'platform', 'Клиника (при наличии)',
+                             'clinic', 'Ссылка', 'link')
 other_urls = df_other['link'].dropna().to_list()
 
 domains = []
@@ -142,7 +154,7 @@ for url in tqdm(domains['zoon.ru']):
     parsed = get_response(url)
     parse = get_content(parsed, "div", "class", "service-action__item")
     z_rate, z_ratings = rating(parse, "div", "span", "class", "class",
-                               "z-text--16 z-text--default z-text--bold",None)
+                               "z-text--16 z-text--default z-text--bold", None)
     zoon_rate.append(z_rate)
     string = str(z_ratings[0])
     string = string.strip('\n\t')
