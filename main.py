@@ -78,7 +78,7 @@ for url in tqdm(gis_urls):
             resp = get_response(url)
             content = get_content(resp, "div", "class", "_1pfef7u")
             rate, ratings = rating(content, "div", "div", "class", "class", "_y10azs",
-                           "_jspzdm")
+                                   "_jspzdm")
             try:
                 ratings = str(ratings[0]).split(' ')
                 rate_number.append(float(str(rate[0])))
@@ -235,12 +235,31 @@ doctuloc = df_otherlinks.columns.get_loc("doctu.ru")
 df_otherlinks.insert(loc=doctuloc + 1, column='doctu.ru_rate', value=pd.Series(doctu_rates))
 df_otherlinks.insert(loc=doctuloc + 2, column='doctu.ru_ratings', value=pd.Series(doctu_ratings))
 
+np_rates = []
+np_ratings = []
+np_reviews = []
+for url in tqdm(domains['napopravku.ru']):
+    np_parse = []
+    np_parse = selenium_parsing(url, "div", "class", "clinic-title__rating-info rating-info")
+    rate = BeautifulSoup(str(np_parse[0]), 'html.parser').get_text()
+    reviews = BeautifulSoup(str(np_parse[1]), 'html.parser').get_text()
+    np_rates.append(rate)
+    np_ratings.append(reviews.split(' ')[-2])
+    np_reviews.append(reviews.split(' ')[2])
+    sleep(randint(1, 3))
+
+nploc = df_otherlinks.columns.get_loc("napopravku.ru")
+df_otherlinks.insert(loc=nploc + 1, column='napopravku.ru_rate', value=pd.Series(np_rates))
+df_otherlinks.insert(loc=nploc + 2, column='napopravku.ru_ratings', value=pd.Series(np_ratings))
+df_otherlinks.insert(loc=nploc + 3, column='napopravku.ru_reviews', value=pd.Series(np_reviews))
+
 # Объединение, вывод в файл
 print('Записываем файл...')
 df_other = df_otherlinks[['zoon.ru', 'zoon.ru_rate', 'zoon.ru_ratings',
                           'prodoctorov.ru', 'prodoctorov.ru_rate', 'prodoctorov.ru_ratings',
                           'msk.stom-firms.ru', 'msk.stom-firms.ru_rate', 'msk.stom-firms.ru_ratings',
-                          'doctu.ru', 'doctu.ru_rate', 'doctu.ru_ratings']]
+                          'doctu.ru', 'doctu.ru_rate', 'doctu.ru_ratings',
+                          'napopravku.ru', 'napopravku.ru_rate', 'napopravku.ru_ratings', 'napopravku.ru_reviews']]
 df_other.drop(df_other.tail(1).index, inplace=True)
 df_other['prodoctorov.ru_ratings'] = df_other['prodoctorov.ru_ratings'].astype(int)
 df_other['msk.stom-firms.ru_ratings'] = df_other['msk.stom-firms.ru_ratings'].astype(int)
@@ -257,4 +276,4 @@ df_merged = pd.concat(
 
 df_final = pd.concat([df_merged, df_other], axis=1)
 date_str = strftime("%Y-%m-%d")
-df_final.to_csv(f"workfiles/parsed_{date_str}.csv", index=False)
+df_final.to_csv(f'workfiles/parsed_{date_str}.csv', index=False)

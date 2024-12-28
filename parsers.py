@@ -56,6 +56,7 @@ def get_contents_google(response):
     info = soup.find("script", text=re.compile("Отзывов"))
     return info
 
+
 def selenium_parsing(url, tag, parameter, name):
     driver = webdriver.Firefox()
     driver.get(url)
