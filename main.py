@@ -241,3 +241,20 @@ df_merged = pd.concat(
 df_final = pd.concat([df_merged, df_other], axis=1)
 date_str = strftime("%Y-%m-%d")
 df_final.to_csv(f"workfiles/parsed_{date_str}.csv", index=False)
+
+doctu_rates = []
+doctu_ratings = []
+
+for url in tqdm(domains['doctu.ru']):
+    doctu_parse = []
+    doctu_parse = selenium_parsing(url, "div", "itemprop", "aggregateRating")
+    rate = BeautifulSoup(str(doctu_parse[4]), 'html.parser').get_text()
+    reviews = BeautifulSoup(str(doctu_parse[-2]), 'html.parser').get_text()
+    doctu_rates.append(float(rate))
+    doctu_ratings.append(int(reviews.split(' ')[0]))
+    sleep(randint(1, 3))
+
+doctuloc = df_otherlinks.columns.get_loc("doctu.ru")
+df_otherlinks.insert(loc=doctuloc + 1, column='doctu.ru_rate', value=pd.Series(pd_rates))
+df_otherlinks.insert(loc=doctuloc + 2, column='doctu.ru_ratings', value=pd.Series(pd_ratings))
+print(df_otherlinks)

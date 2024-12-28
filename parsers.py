@@ -1,9 +1,10 @@
 import re
-
 import requests
+from selenium import webdriver
 from bs4 import BeautifulSoup
 
-headers = {"User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0"}
+headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+           'Upgrade-Insecure-Requests': '1'}
 session = requests.Session()  # Создаем сессию
 session.headers = headers  # Передать заголовок в сессию
 
@@ -24,6 +25,7 @@ def extract_domain(url):
 
 def get_response(url):
     response = session.get(url=url)
+    print(url)
     if response.status_code != 200:
         print("Произошла ошибка запроса, код:", response.status_code)
         print(response.reason)
@@ -53,3 +55,14 @@ def get_contents_google(response):
     soup = BeautifulSoup(response, "lxml")
     info = soup.find("script", text=re.compile("Отзывов"))
     return info
+
+def selenium_parsing(url, tag, parameter, name):
+    driver = webdriver.Firefox()
+    driver.get(url)
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    driver.close()
+    try:
+        content = soup.find(tag, {parameter: name}).contents
+        return content
+    except:
+        return None
