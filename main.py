@@ -219,11 +219,28 @@ sfloc = df_otherlinks.columns.get_loc("msk.stom-firms.ru")
 df_otherlinks.insert(loc=sfloc + 1, column='msk.stom-firms.ru_rate', value=pd.Series(sf_rates))
 df_otherlinks.insert(loc=sfloc + 2, column='msk.stom-firms.ru_ratings', value=pd.Series(sf_ratings))
 
+doctu_rates = []
+doctu_ratings = []
+
+for url in tqdm(domains['doctu.ru']):
+    doctu_parse = []
+    doctu_parse = selenium_parsing(url, "div", "itemprop", "aggregateRating")
+    rate = BeautifulSoup(str(doctu_parse[4]), 'html.parser').get_text()
+    reviews = BeautifulSoup(str(doctu_parse[-2]), 'html.parser').get_text()
+    doctu_rates.append(float(rate))
+    doctu_ratings.append(int(reviews.split(' ')[0]))
+    sleep(randint(1, 3))
+
+doctuloc = df_otherlinks.columns.get_loc("doctu.ru")
+df_otherlinks.insert(loc=doctuloc + 1, column='doctu.ru_rate', value=pd.Series(doctu_rates))
+df_otherlinks.insert(loc=doctuloc + 2, column='doctu.ru_ratings', value=pd.Series(doctu_ratings))
+
 # Объединение, вывод в файл
 print('Записываем файл...')
 df_other = df_otherlinks[['zoon.ru', 'zoon.ru_rate', 'zoon.ru_ratings',
                           'prodoctorov.ru', 'prodoctorov.ru_rate', 'prodoctorov.ru_ratings',
-                          'msk.stom-firms.ru', 'msk.stom-firms.ru_rate', 'msk.stom-firms.ru_ratings']]
+                          'msk.stom-firms.ru', 'msk.stom-firms.ru_rate', 'msk.stom-firms.ru_ratings',
+                          'doctu.ru', 'doctu.ru_rate', 'doctu.ru_ratings']]
 df_other.drop(df_other.tail(1).index, inplace=True)
 df_other['prodoctorov.ru_ratings'] = df_other['prodoctorov.ru_ratings'].astype(int)
 df_other['msk.stom-firms.ru_ratings'] = df_other['msk.stom-firms.ru_ratings'].astype(int)
@@ -241,20 +258,3 @@ df_merged = pd.concat(
 df_final = pd.concat([df_merged, df_other], axis=1)
 date_str = strftime("%Y-%m-%d")
 df_final.to_csv(f"workfiles/parsed_{date_str}.csv", index=False)
-
-doctu_rates = []
-doctu_ratings = []
-
-for url in tqdm(domains['doctu.ru']):
-    doctu_parse = []
-    doctu_parse = selenium_parsing(url, "div", "itemprop", "aggregateRating")
-    rate = BeautifulSoup(str(doctu_parse[4]), 'html.parser').get_text()
-    reviews = BeautifulSoup(str(doctu_parse[-2]), 'html.parser').get_text()
-    doctu_rates.append(float(rate))
-    doctu_ratings.append(int(reviews.split(' ')[0]))
-    sleep(randint(1, 3))
-
-doctuloc = df_otherlinks.columns.get_loc("doctu.ru")
-df_otherlinks.insert(loc=doctuloc + 1, column='doctu.ru_rate', value=pd.Series(pd_rates))
-df_otherlinks.insert(loc=doctuloc + 2, column='doctu.ru_ratings', value=pd.Series(pd_ratings))
-print(df_otherlinks)
