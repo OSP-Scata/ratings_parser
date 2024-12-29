@@ -3,7 +3,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from undetected_chromedriver import ChromeOptions
+from selenium.webdriver.chrome.options import Options
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
            'Upgrade-Insecure-Requests': '1'}
@@ -60,7 +60,7 @@ def get_contents_google(response):
 
 
 def selenium_parsing(url, tag, parameter, name):
-    options = ChromeOptions()
+    options = Options()
     options.add_argument("--headless=new")
     options.add_experimental_option('excludeSwitch', ['enable-logging'])
     options.add_argument('--log-level=3')
