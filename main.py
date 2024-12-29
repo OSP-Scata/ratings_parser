@@ -291,7 +291,7 @@ for url in tqdm(domains['stomdoc.ru']):
     r_content = get_content(response, 'div', 'class', 'col-xs-24 col-sm-14 col-md-17 col-lg-19 '
                                                       'col-sm-vertical-middle col-md-vertical-middle col-lg-vertical-middle')
     ratings = BeautifulSoup(str(r_content[1]), 'html.parser').get_text()
-    sd_rates.append(float(rate))
+    sd_rates.append(float(rate[0]))
     sd_ratings.append(int(ratings.split(' ')[1]))
     sleep(randint(1, 3))
 
