@@ -304,6 +304,7 @@ top32_rates = []
 top32_ratings = []
 
 for url in tqdm(domains['32top.ru']):
+    response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
     rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
     ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
@@ -320,6 +321,7 @@ flamp_rates = []
 flamp_ratings = []
 
 for url in tqdm(domains['flamp.ru']):
+    response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
     rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
     ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
