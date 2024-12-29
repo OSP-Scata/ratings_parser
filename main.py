@@ -147,6 +147,7 @@ for key, value in domains.items():
         if extract_domain(url) == key:
             urls.append(url)
         domains[key] = urls
+# print(domains) # для проверки, что правильно выдернулось
 
 # Zoon.ru
 zoon_rate = []
@@ -322,7 +323,7 @@ df_otherlinks.insert(loc=top32loc + 2, column='32top.ru_ratings', value=pd.Serie
 flamp_rates = []
 flamp_ratings = []
 
-for url in tqdm(domains['flamp.ru']):
+for url in tqdm(domains['moscow.flamp.ru']):
     response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
     try:
@@ -335,9 +336,9 @@ for url in tqdm(domains['flamp.ru']):
         flamp_ratings.append(-1)
     sleep(randint(1, 3))
 
-flamploc = df_otherlinks.columns.get_loc("flamp.ru")
-df_otherlinks.insert(loc=flamploc + 1, column='flamp.ru_rate', value=pd.Series(flamp_rates))
-df_otherlinks.insert(loc=flamploc + 2, column='flamp.ru_ratings', value=pd.Series(flamp_ratings))
+flamploc = df_otherlinks.columns.get_loc("moscow.flamp.ru")
+df_otherlinks.insert(loc=flamploc + 1, column='moscow.flamp.ru_rate', value=pd.Series(flamp_rates))
+df_otherlinks.insert(loc=flamploc + 2, column='moscow.flamp.ru_ratings', value=pd.Series(flamp_ratings))
 
 # Объединение, вывод в файл
 print('Записываем файл...')
@@ -349,7 +350,7 @@ df_other = df_otherlinks[['zoon.ru', 'zoon.ru_rate', 'zoon.ru_ratings',
                           'topdent.ru', 'topdent.ru_rate', 'topdent.ru_ratings',
                           'stomdoc.ru', 'stomdoc.ru_rate', 'stomdoc.ru_ratings',
                           '32top.ru', '32top.ru_rate', '32top.ru_ratings',
-                          'flamp.ru', 'flamp.ru_rate', 'flamp.ru_ratings']]
+                          'moscow.flamp.ru', 'moscow.flamp.ru_rate', 'moscow.flamp.ru_ratings']]
 # df_other.drop(df_other.tail(1).index, inplace=True)
 df_other.fillna(-1, inplace=True)
 df_other['prodoctorov.ru_ratings'] = df_other['prodoctorov.ru_ratings'].astype(int)
