@@ -27,7 +27,7 @@ def extract_domain(url):
 
 def get_response(url):
     response = session.get(url=url)
-    print(url)
+    # print(url)
     if response.status_code != 200:
         print("Произошла ошибка запроса, код:", response.status_code)
         print(response.reason)
