@@ -247,11 +247,16 @@ np_reviews = []
 for url in tqdm(domains['napopravku.ru']):
     np_parse = []
     np_parse = selenium_parsing(url, "div", "class", "clinic-title__rating-info rating-info")
-    rate = BeautifulSoup(str(np_parse[0]), 'html.parser').get_text()
-    reviews = BeautifulSoup(str(np_parse[1]), 'html.parser').get_text()
-    np_rates.append(rate)
-    np_ratings.append(reviews.split(' ')[-2])
-    np_reviews.append(reviews.split(' ')[2])
+    try:
+        rate = BeautifulSoup(str(np_parse[0]), 'html.parser').get_text()
+        reviews = BeautifulSoup(str(np_parse[1]), 'html.parser').get_text()
+        np_rates.append(rate)
+        np_ratings.append(reviews.split(' ')[-2])
+        np_reviews.append(reviews.split(' ')[2])
+    except:
+        np_rates.append(-1)
+        np_ratings.append(-1)
+        np_reviews.append(-1)
     sleep(randint(1, 3))
 
 nploc = df_otherlinks.columns.get_loc("napopravku.ru")
