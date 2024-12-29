@@ -326,8 +326,8 @@ for url in tqdm(domains['moscow.flamp.ru']):
     response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
     try:
-        rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
-        ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
+        rate = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
+        ratings = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
         flamp_rates.append(rate['content'])
         flamp_ratings.append(ratings['content'])
     except:
