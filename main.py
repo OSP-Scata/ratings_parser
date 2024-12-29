@@ -245,7 +245,6 @@ np_rates = []
 np_ratings = []
 np_reviews = []
 for url in tqdm(domains['napopravku.ru']):
-    np_parse = []
     np_parse = selenium_parsing(url, "div", "class", "clinic-title__rating-info rating-info")
     try:
         rate = BeautifulSoup(str(np_parse[0]), 'html.parser').get_text()

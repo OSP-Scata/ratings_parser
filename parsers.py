@@ -1,9 +1,9 @@
 import re
 
 import requests
+import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium_stealth import stealth
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
            'Upgrade-Insecure-Requests': '1'}
@@ -54,17 +54,25 @@ def rating(data, tag1, tag2, parameter1, parameter2, name1, name2):
 
 
 def get_contents_google(response):
-    soup = BeautifulSoup(response, "lxml")
+    soup = BeautifulSoup(response, "html.parser")
     info = soup.find("script", text=re.compile("Отзывов"))
     return info
 
 
 def selenium_parsing(url, tag, parameter, name):
-    options = Options()
-    options.add_argument("--headless=new")
-    # options.add_experimental_option('excludeSwitch', ['enable-logging'])
-    options.add_argument('--log-level=3')
-    driver = webdriver.Chrome(options=options)
+    driver = uc.Chrome(headless=True)
+    ua = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+          'Chrome/131.0.0.0 Safari/537.36')
+    stealth(driver,
+            user_agent=ua,
+            languages=["ru-RU", "ru"],
+            vendor="Google Inc.",
+            platform="Win32",
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True,
+            run_on_insecure_origins=True
+            )
     driver.get(url)
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     driver.close()
