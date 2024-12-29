@@ -132,6 +132,7 @@ df_other = prepare_dataframe(excel_file, sheets[3], 'Площадка', 'platfor
                              'clinic', 'Ссылка', 'link')
 other_urls = df_other['link'].dropna().to_list()
 
+# выдёргиваем домены
 domains = []
 for url in other_urls:
     domains.append(extract_domain(url))
@@ -147,6 +148,7 @@ for key, value in domains.items():
             urls.append(url)
         domains[key] = urls
 
+# Zoon.ru
 zoon_rate = []
 zoon_ratings = []
 
@@ -177,6 +179,7 @@ df_otherlinks.insert(loc=zoonloc + 2, column='zoon.ru_ratings', value=pd.Series(
 df_otherlinks = df_otherlinks.fillna(-1)
 df_otherlinks['zoon.ru_ratings'] = df_otherlinks['zoon.ru_ratings'].astype(int)
 
+# Prodoctorov.ru
 pd_rates = []
 pd_ratings = []
 
@@ -193,6 +196,7 @@ pdloc = df_otherlinks.columns.get_loc("prodoctorov.ru")
 df_otherlinks.insert(loc=pdloc + 1, column='prodoctorov.ru_rate', value=pd.Series(pd_rates))
 df_otherlinks.insert(loc=pdloc + 2, column='prodoctorov.ru_ratings', value=pd.Series(pd_ratings))
 
+# Msk.stom-firms.ru
 sf_rates = []
 sf_ratings = []
 
@@ -219,6 +223,7 @@ sfloc = df_otherlinks.columns.get_loc("msk.stom-firms.ru")
 df_otherlinks.insert(loc=sfloc + 1, column='msk.stom-firms.ru_rate', value=pd.Series(sf_rates))
 df_otherlinks.insert(loc=sfloc + 2, column='msk.stom-firms.ru_ratings', value=pd.Series(sf_ratings))
 
+# Doctu.ru
 doctu_rates = []
 doctu_ratings = []
 
@@ -235,6 +240,7 @@ doctuloc = df_otherlinks.columns.get_loc("doctu.ru")
 df_otherlinks.insert(loc=doctuloc + 1, column='doctu.ru_rate', value=pd.Series(doctu_rates))
 df_otherlinks.insert(loc=doctuloc + 2, column='doctu.ru_ratings', value=pd.Series(doctu_ratings))
 
+# napopravku.ru
 np_rates = []
 np_ratings = []
 np_reviews = []
@@ -253,14 +259,86 @@ df_otherlinks.insert(loc=nploc + 1, column='napopravku.ru_rate', value=pd.Series
 df_otherlinks.insert(loc=nploc + 2, column='napopravku.ru_ratings', value=pd.Series(np_ratings))
 df_otherlinks.insert(loc=nploc + 3, column='napopravku.ru_reviews', value=pd.Series(np_reviews))
 
+# Topdent
+td_rates = []
+td_ratings = []
+
+for url in tqdm(domains['topdent.ru']):
+    response = get_response(url)
+    parse = get_content(response, 'span', 'class', 'rate')
+    rate, ratings = rating(parse, "span", "span", "class", "class",
+                           "rate__value", "rate__count")
+    td_rates.append(float(str(rate[0])))
+    td_ratings.append(int(str(ratings[0]).split(' ')[0]))
+    sleep(randint(1, 3))
+
+tdloc = df_otherlinks.columns.get_loc("topdent.ru")
+df_otherlinks.insert(loc=tdloc + 1, column='topdent.ru_rate', value=pd.Series(td_rates))
+df_otherlinks.insert(loc=tdloc + 2, column='topdent.ru_ratings', value=pd.Series(td_ratings))
+
+# stomdoc
+sd_rates = []
+sd_ratings = []
+
+for url in tqdm(domains['stomdoc.ru']):
+    response = get_response(url)
+    rate = get_content(response, 'div', 'class', 'b-clinic_page_heading_rating_wg_num')
+    r_content = get_content(response, 'div', 'class', 'col-xs-24 col-sm-14 col-md-17 col-lg-19 '
+                                                      'col-sm-vertical-middle col-md-vertical-middle col-lg-vertical-middle')
+    ratings = BeautifulSoup(str(r_content[1]), 'html.parser').get_text()
+    sd_rates.append(float(rate))
+    sd_ratings.append(int(ratings.split(' ')[1]))
+    sleep(randint(1, 3))
+
+sdloc = df_otherlinks.columns.get_loc("stomdoc.ru")
+df_otherlinks.insert(loc=sdloc + 1, column='stomdoc.ru_rate', value=pd.Series(sd_rates))
+df_otherlinks.insert(loc=sdloc + 2, column='stomdoc.ru_ratings', value=pd.Series(sd_ratings))
+
+# 32top
+top32_rates = []
+top32_ratings = []
+
+for url in tqdm(domains['32top.ru']):
+    parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
+    rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
+    ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
+    top32_rates.append(rate['content'])
+    top32_ratings.append(ratings['content'])
+    sleep(randint(1, 3))
+
+top32loc = df_otherlinks.columns.get_loc("32top.ru")
+df_otherlinks.insert(loc=top32loc + 1, column='32top.ru_rate', value=pd.Series(top32_rates))
+df_otherlinks.insert(loc=top32loc + 2, column='32top.ru_ratings', value=pd.Series(top32_ratings))
+
+# flamp
+flamp_rates = []
+flamp_ratings = []
+
+for url in tqdm(domains['flamp.ru']):
+    parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
+    rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
+    ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
+    flamp_rates.append(rate['content'])
+    flamp_ratings.append(ratings['content'])
+    sleep(randint(1, 3))
+
+flamploc = df_otherlinks.columns.get_loc("flamp.ru")
+df_otherlinks.insert(loc=flamploc + 1, column='flamp.ru_rate', value=pd.Series(flamp_rates))
+df_otherlinks.insert(loc=flamploc + 2, column='flamp.ru_ratings', value=pd.Series(flamp_ratings))
+
 # Объединение, вывод в файл
 print('Записываем файл...')
 df_other = df_otherlinks[['zoon.ru', 'zoon.ru_rate', 'zoon.ru_ratings',
                           'prodoctorov.ru', 'prodoctorov.ru_rate', 'prodoctorov.ru_ratings',
                           'msk.stom-firms.ru', 'msk.stom-firms.ru_rate', 'msk.stom-firms.ru_ratings',
                           'doctu.ru', 'doctu.ru_rate', 'doctu.ru_ratings',
-                          'napopravku.ru', 'napopravku.ru_rate', 'napopravku.ru_ratings', 'napopravku.ru_reviews']]
-df_other.drop(df_other.tail(1).index, inplace=True)
+                          'napopravku.ru', 'napopravku.ru_rate', 'napopravku.ru_ratings', 'napopravku.ru_reviews',
+                          'topdent.ru', 'topdent.ru_rate', 'topdent.ru_ratings',
+                          'stomdoc.ru', 'stomdoc.ru_rate', 'stomdoc.ru_ratings',
+                          '32top.ru', '32top.ru_rate', '32top.ru_ratings',
+                          'flamp.ru', 'flamp.ru_rate', 'flamp.ru_ratings']]
+# df_other.drop(df_other.tail(1).index, inplace=True)
+df_other.fillna(-1, inplace=True)
 df_other['prodoctorov.ru_ratings'] = df_other['prodoctorov.ru_ratings'].astype(int)
 df_other['msk.stom-firms.ru_ratings'] = df_other['msk.stom-firms.ru_ratings'].astype(int)
 

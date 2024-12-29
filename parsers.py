@@ -1,7 +1,9 @@
 import re
+
 import requests
-from selenium import webdriver
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from undetected_chromedriver import ChromeOptions
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
            'Upgrade-Insecure-Requests': '1'}
@@ -58,7 +60,9 @@ def get_contents_google(response):
 
 
 def selenium_parsing(url, tag, parameter, name):
-    driver = webdriver.Firefox()
+    options = ChromeOptions()
+    options.add_argument("--headless=new")
+    driver = webdriver.Chrome(options=options)
     driver.get(url)
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     driver.close()
