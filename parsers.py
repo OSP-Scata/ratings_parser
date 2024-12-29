@@ -62,6 +62,8 @@ def get_contents_google(response):
 def selenium_parsing(url, tag, parameter, name):
     options = ChromeOptions()
     options.add_argument("--headless=new")
+    options.add_experimental_option('excludeSwitch', ['enable-logging'])
+    options.add_argument('--log-level=3')
     driver = webdriver.Chrome(options=options)
     driver.get(url)
     soup = BeautifulSoup(driver.page_source, 'html.parser')

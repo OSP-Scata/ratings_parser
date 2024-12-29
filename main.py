@@ -234,7 +234,6 @@ for url in tqdm(domains['doctu.ru']):
     reviews = BeautifulSoup(str(doctu_parse[-2]), 'html.parser').get_text()
     doctu_rates.append(float(rate))
     doctu_ratings.append(int(reviews.split(' ')[0]))
-    sleep(randint(1, 3))
 
 doctuloc = df_otherlinks.columns.get_loc("doctu.ru")
 df_otherlinks.insert(loc=doctuloc + 1, column='doctu.ru_rate', value=pd.Series(doctu_rates))
@@ -257,7 +256,6 @@ for url in tqdm(domains['napopravku.ru']):
         np_rates.append(-1)
         np_ratings.append(-1)
         np_reviews.append(-1)
-    sleep(randint(1, 3))
 
 nploc = df_otherlinks.columns.get_loc("napopravku.ru")
 df_otherlinks.insert(loc=nploc + 1, column='napopravku.ru_rate', value=pd.Series(np_rates))
@@ -306,10 +304,14 @@ top32_ratings = []
 for url in tqdm(domains['32top.ru']):
     response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
-    rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
-    ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
-    top32_rates.append(rate['content'])
-    top32_ratings.append(ratings['content'])
+    try:
+        rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
+        ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
+        top32_rates.append(rate['content'])
+        top32_ratings.append(ratings['content'])
+    except:
+        top32_rates.append(-1)
+        top32_ratings.append(-1)
     sleep(randint(1, 3))
 
 top32loc = df_otherlinks.columns.get_loc("32top.ru")
@@ -323,10 +325,14 @@ flamp_ratings = []
 for url in tqdm(domains['flamp.ru']):
     response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
-    rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
-    ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
-    flamp_rates.append(rate['content'])
-    flamp_ratings.append(ratings['content'])
+    try:
+        rate = BeautifulSoup(str(parse[1]), 'html.parser').find("meta")
+        ratings = BeautifulSoup(str(parse[3]), 'html.parser').find("meta")
+        flamp_rates.append(rate['content'])
+        flamp_ratings.append(ratings['content'])
+    except:
+        flamp_rates.append(-1)
+        flamp_ratings.append(-1)
     sleep(randint(1, 3))
 
 flamploc = df_otherlinks.columns.get_loc("flamp.ru")
