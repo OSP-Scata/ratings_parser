@@ -1,6 +1,7 @@
 # Начало: импорты, функции, глобальные переменные
 
 import warnings
+from functools import reduce
 from random import randint
 from time import sleep, strftime
 
@@ -37,6 +38,7 @@ def prepare_dataframe(file, sheet, field1, field2, field3, field4, field5=None, 
 
 # Яндекс
 df_yandex = prepare_dataframe(excel_file, sheets[0], 'Unnamed: 1', 'link', 'Клиника', 'clinic')
+df_yandex['clinic'] = df_yandex['clinic'].str.replace(r'ЮС-\d+', '', regex=True).str.strip()
 links = df_yandex['link'].to_list()
 yandex_ids = []
 for link in links:
@@ -62,12 +64,13 @@ for i in range(len(parsed)):
         ratings.append(-1)
         reviews.append(-1)
 
-df_yandex['rate'] = rate
-df_yandex['ratings'] = ratings
-df_yandex['reviews'] = reviews
+df_yandex['yandex_rate'] = rate
+df_yandex['yandex_ratings'] = ratings
+df_yandex['yandex_reviews'] = reviews
 
 # 2GIS
 df_2gis = prepare_dataframe(excel_file, sheets[1], 'Клиника', 'clinic', 'Ссылка', 'link')
+df_2gis['clinic'] = df_2gis['clinic'].str.replace(r'ЮС-\d+', '', regex=True).str.strip()
 gis_urls = df_2gis['link'].to_list()
 rate_number = []
 rate_quantity = []
@@ -91,12 +94,12 @@ for url in tqdm(gis_urls):
 
     sleep(randint(1, 3))
 
-df_2gis['rate_number'] = pd.Series(rate_number)
-df_2gis['rate_quantity'] = pd.Series(rate_quantity)
+df_2gis['2gis_rate_number'] = pd.Series(rate_number)
+df_2gis['2gis_rate_quantity'] = pd.Series(rate_quantity)
 
 # Google
 df_google = prepare_dataframe(excel_file, sheets[2], 'Клиника', 'clinic', 'Ссылка', 'link')
-
+df_google['clinic'] = df_google['clinic'].str.replace(r'ЮС-\d+', '', regex=True).str.strip()
 google_urls = df_google['link'].to_list()
 g_rate_number = []
 g_rate_quantity = []
@@ -123,37 +126,25 @@ for i in range(len(found)):
     else:
         g_rate_quantity.append(found[i])
 
-df_google['rate'] = g_rate_number
-df_google['ratings'] = g_rate_quantity
-df_google['ratings'] = df_google['ratings'].astype(int)
+df_google['google_rate'] = g_rate_number
+df_google['google_ratings'] = g_rate_quantity
+df_google['google_ratings'] = df_google['google_ratings'].astype(int)
 
 # Другие
 df_other = prepare_dataframe(excel_file, sheets[3], 'Площадка', 'platform', 'Клиника (при наличии)',
                              'clinic', 'Ссылка', 'link')
-other_urls = df_other['link'].dropna().to_list()
-
-# выдёргиваем домены
-domains = []
-for url in other_urls:
-    domains.append(extract_domain(url))
-
-domains = dict.fromkeys(domains)
-domains = [x for x in domains if x is not None]
-domains = dict.fromkeys(domains)
-
-for key, value in domains.items():
-    urls = []
-    for url in other_urls:
-        if extract_domain(url) == key:
-            urls.append(url)
-        domains[key] = urls
-# print(domains) # для проверки, что правильно выдернулось
+df_other['platform'].ffill(inplace=True)
+df_other['platform'] = df_other['platform'].str.lower().str.strip()
+platforms = df_other['platform'].unique()
+dict_platforms = {}
+for i in range(len(platforms)):
+    dict_platforms[platforms[i]] = df_other[df_other['platform'] == platforms[i]]
 
 # Zoon.ru
 zoon_rate = []
 zoon_ratings = []
-
-for url in tqdm(domains['zoon.ru']):
+dict_platforms['zoon.ru'].rename(columns={'link': 'zoon_link'}, inplace=True)
+for url in tqdm(dict_platforms['zoon.ru']['zoon_link']):
     parsed = get_response(url)
     parse = get_content(parsed, "div", "class", "service-action__item")
     z_rate, z_ratings = rating(parse, "div", "span", "class", "class",
@@ -166,42 +157,39 @@ for url in tqdm(domains['zoon.ru']):
     sleep(randint(1, 3))
 
 zoon_rate_fix = []
-
 for item in zoon_rate:
     zoon_rate_fix.append(float(str(item[0]).replace(',', '.')))
 
-df_otherlinks = pd.DataFrame.from_dict(domains, orient='index')
-df_otherlinks = df_otherlinks.transpose()
-
-zoonloc = df_otherlinks.columns.get_loc("zoon.ru")
-df_otherlinks.insert(loc=zoonloc + 1, column='zoon.ru_rate', value=pd.Series(zoon_rate_fix))
-df_otherlinks.insert(loc=zoonloc + 2, column='zoon.ru_ratings', value=pd.Series(zoon_ratings))
-
-df_otherlinks = df_otherlinks.fillna(-1)
-df_otherlinks['zoon.ru_ratings'] = df_otherlinks['zoon.ru_ratings'].astype(int)
+dict_platforms['zoon.ru']['zoon.ru_rate'] = zoon_rate_fix
+dict_platforms['zoon.ru']['zoon.ru_ratings'] = zoon_ratings
+dict_platforms['zoon.ru'] = dict_platforms['zoon.ru'].fillna(-1)
+dict_platforms['zoon.ru']['zoon.ru_ratings'] = dict_platforms['zoon.ru']['zoon.ru_ratings'].astype(int)
 
 # Prodoctorov.ru
 pd_rates = []
 pd_ratings = []
-
-for url in tqdm(domains['prodoctorov.ru']):
+dict_platforms['prodoctorov.ru'].rename(columns={'link': 'prodoctorov_link'}, inplace=True)
+for url in tqdm(dict_platforms['prodoctorov.ru']['prodoctorov_link']):
     parsed = get_response(url)
     parse = get_content(str(parsed), "div", "id", "content")
     rate, ratings = rating(parse, "div", "span", "class", "class",
-                           "ui-text ui-text_h5 ui-kit-color-text font-weight-medium mr-2", "b-box-rating__text")
-    pd_rates.append(float(str(rate[0]).strip('\n ')))
-    pd_ratings.append(int(str(ratings[0]).strip('\n ').split(' ')[0]))
+                           "ui-text ui-text_h5 ui-kit-color-text font-weight-medium mr-2",
+                           "b-box-rating__text")
+    try:
+        pd_rates.append(float(str(rate[0]).strip('\n ')))
+        pd_ratings.append(int(str(ratings[0]).strip('\n ').split(' ')[0]))
+    except:
+        pd_rates.append(-1)
+        pd_ratings.append(-1)
     sleep(randint(1, 3))
-
-pdloc = df_otherlinks.columns.get_loc("prodoctorov.ru")
-df_otherlinks.insert(loc=pdloc + 1, column='prodoctorov.ru_rate', value=pd.Series(pd_rates))
-df_otherlinks.insert(loc=pdloc + 2, column='prodoctorov.ru_ratings', value=pd.Series(pd_ratings))
+dict_platforms['prodoctorov.ru']['prodoctorov.ru_rate'] = pd_rates
+dict_platforms['prodoctorov.ru']['prodoctorov.ru_ratings'] = pd_ratings
 
 # Msk.stom-firms.ru
 sf_rates = []
 sf_ratings = []
-
-for url in tqdm(domains['msk.stom-firms.ru']):
+dict_platforms['msk.stom-firms.ru'].rename(columns={'link': 'msk.stom-firms_link'}, inplace=True)
+for url in tqdm(dict_platforms['msk.stom-firms.ru']['msk.stom-firms_link']):
     summ = 0
     response = get_response(url)
     parse = get_content(response, 'div', 'id', 'content')
@@ -220,31 +208,29 @@ for url in tqdm(domains['msk.stom-firms.ru']):
     sf_ratings.append(summ)
     sleep(randint(1, 3))
 
-sfloc = df_otherlinks.columns.get_loc("msk.stom-firms.ru")
-df_otherlinks.insert(loc=sfloc + 1, column='msk.stom-firms.ru_rate', value=pd.Series(sf_rates))
-df_otherlinks.insert(loc=sfloc + 2, column='msk.stom-firms.ru_ratings', value=pd.Series(sf_ratings))
+dict_platforms['msk.stom-firms.ru']['msk.stom-firms.ru_rate'] = sf_rates
+dict_platforms['msk.stom-firms.ru']['msk.stom-firms.ru_ratings'] = sf_ratings
 
 # Doctu.ru
 doctu_rates = []
 doctu_ratings = []
-
-for url in tqdm(domains['doctu.ru']):
-    doctu_parse = []
+dict_platforms['doctu.ru'].rename(columns={'link': 'doctu_link'}, inplace=True)
+for url in tqdm(dict_platforms['doctu.ru']['doctu_link']):
     doctu_parse = selenium_parsing(url, "div", "itemprop", "aggregateRating")
     rate = BeautifulSoup(str(doctu_parse[4]), 'html.parser').get_text()
     reviews = BeautifulSoup(str(doctu_parse[-2]), 'html.parser').get_text()
     doctu_rates.append(float(rate))
     doctu_ratings.append(int(reviews.split(' ')[0]))
 
-doctuloc = df_otherlinks.columns.get_loc("doctu.ru")
-df_otherlinks.insert(loc=doctuloc + 1, column='doctu.ru_rate', value=pd.Series(doctu_rates))
-df_otherlinks.insert(loc=doctuloc + 2, column='doctu.ru_ratings', value=pd.Series(doctu_ratings))
+dict_platforms['doctu.ru']['doctu.ru_rate'] = doctu_rates
+dict_platforms['doctu.ru']['doctu.ru_ratings'] = doctu_ratings
 
 # napopravku.ru
 np_rates = []
 np_ratings = []
 np_reviews = []
-for url in tqdm(domains['napopravku.ru']):
+dict_platforms['napopravku.ru'].rename(columns={'link': 'napopravku_link'}, inplace=True)
+for url in tqdm(dict_platforms['napopravku.ru']['napopravku_link']):
     np_parse = selenium_parsing(url, "div", "class", "clinic-title__rating-info rating-info")
     try:
         rate = BeautifulSoup(str(np_parse[0]), 'html.parser').get_text()
@@ -257,16 +243,15 @@ for url in tqdm(domains['napopravku.ru']):
         np_ratings.append(-1)
         np_reviews.append(-1)
 
-nploc = df_otherlinks.columns.get_loc("napopravku.ru")
-df_otherlinks.insert(loc=nploc + 1, column='napopravku.ru_rate', value=pd.Series(np_rates))
-df_otherlinks.insert(loc=nploc + 2, column='napopravku.ru_ratings', value=pd.Series(np_ratings))
-df_otherlinks.insert(loc=nploc + 3, column='napopravku.ru_reviews', value=pd.Series(np_reviews))
+dict_platforms['napopravku.ru']['napopravku.ru_rate'] = np_rates
+dict_platforms['napopravku.ru']['napopravku.ru_ratings'] = np_ratings
+dict_platforms['napopravku.ru']['napopravku.ru_reviews'] = np_reviews
 
 # Topdent
 td_rates = []
 td_ratings = []
-
-for url in tqdm(domains['topdent.ru']):
+dict_platforms['topdent.ru'].rename(columns={'link': 'topdent_link'}, inplace=True)
+for url in tqdm(dict_platforms['topdent.ru']['topdent_link']):
     response = get_response(url)
     parse = get_content(response, 'span', 'class', 'rate')
     rate, ratings = rating(parse, "span", "span", "class", "class",
@@ -274,16 +259,14 @@ for url in tqdm(domains['topdent.ru']):
     td_rates.append(float(str(rate[0])))
     td_ratings.append(int(str(ratings[0]).split(' ')[0]))
     sleep(randint(1, 3))
-
-tdloc = df_otherlinks.columns.get_loc("topdent.ru")
-df_otherlinks.insert(loc=tdloc + 1, column='topdent.ru_rate', value=pd.Series(td_rates))
-df_otherlinks.insert(loc=tdloc + 2, column='topdent.ru_ratings', value=pd.Series(td_ratings))
+dict_platforms['topdent.ru']['topdent.ru_rate'] = td_rates
+dict_platforms['topdent.ru']['topdent.ru_ratings'] = td_ratings
 
 # stomdoc
 sd_rates = []
 sd_ratings = []
-
-for url in tqdm(domains['stomdoc.ru']):
+dict_platforms['stomdoc.ru'].rename(columns={'link': 'stomdoc_link'}, inplace=True)
+for url in tqdm(dict_platforms['stomdoc.ru']['stomdoc_link']):
     response = get_response(url)
     rate = get_content(response, 'div', 'class', 'b-clinic_page_heading_rating_wg_num')
     r_content = get_content(response, 'div', 'class', 'col-xs-24 col-sm-14 col-md-17 col-lg-19 '
@@ -292,16 +275,14 @@ for url in tqdm(domains['stomdoc.ru']):
     sd_rates.append(float(rate[0]))
     sd_ratings.append(int(ratings.split(' ')[1]))
     sleep(randint(1, 3))
-
-sdloc = df_otherlinks.columns.get_loc("stomdoc.ru")
-df_otherlinks.insert(loc=sdloc + 1, column='stomdoc.ru_rate', value=pd.Series(sd_rates))
-df_otherlinks.insert(loc=sdloc + 2, column='stomdoc.ru_ratings', value=pd.Series(sd_ratings))
+dict_platforms['stomdoc.ru']['stomdoc.ru_rate'] = sd_rates
+dict_platforms['stomdoc.ru']['stomdoc.ru_ratings'] = sd_ratings
 
 # 32top
 top32_rates = []
 top32_ratings = []
-
-for url in tqdm(domains['32top.ru']):
+dict_platforms['32top.ru'].rename(columns={'link': '32top_link'}, inplace=True)
+for url in tqdm(dict_platforms['32top.ru']['32top_link']):
     response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
     try:
@@ -314,15 +295,14 @@ for url in tqdm(domains['32top.ru']):
         top32_ratings.append(-1)
     sleep(randint(1, 3))
 
-top32loc = df_otherlinks.columns.get_loc("32top.ru")
-df_otherlinks.insert(loc=top32loc + 1, column='32top.ru_rate', value=pd.Series(top32_rates))
-df_otherlinks.insert(loc=top32loc + 2, column='32top.ru_ratings', value=pd.Series(top32_ratings))
+dict_platforms['32top.ru']['32top.ru_rate'] = top32_rates
+dict_platforms['32top.ru']['32top.ru_ratings'] = top32_ratings
 
 # flamp
 flamp_rates = []
 flamp_ratings = []
-
-for url in tqdm(domains['moscow.flamp.ru']):
+dict_platforms['flamp.ru'].rename(columns={'link': 'flamp_link'}, inplace=True)
+for url in tqdm(dict_platforms['flamp.ru']['flamp_link']):
     response = get_response(url)
     parse = get_content(response, 'div', 'itemprop', 'aggregateRating')
     try:
@@ -334,37 +314,38 @@ for url in tqdm(domains['moscow.flamp.ru']):
         flamp_rates.append(-1)
         flamp_ratings.append(-1)
     sleep(randint(1, 3))
-
-flamploc = df_otherlinks.columns.get_loc("moscow.flamp.ru")
-df_otherlinks.insert(loc=flamploc + 1, column='moscow.flamp.ru_rate', value=pd.Series(flamp_rates))
-df_otherlinks.insert(loc=flamploc + 2, column='moscow.flamp.ru_ratings', value=pd.Series(flamp_ratings))
+dict_platforms['flamp.ru']['flamp.ru_rate'] = flamp_rates
+dict_platforms['flamp.ru']['flamp.ru_ratings'] = flamp_ratings
 
 # Объединение, вывод в файл
 print('Записываем файл...')
-df_other = df_otherlinks[['zoon.ru', 'zoon.ru_rate', 'zoon.ru_ratings',
-                          'prodoctorov.ru', 'prodoctorov.ru_rate', 'prodoctorov.ru_ratings',
-                          'msk.stom-firms.ru', 'msk.stom-firms.ru_rate', 'msk.stom-firms.ru_ratings',
-                          'doctu.ru', 'doctu.ru_rate', 'doctu.ru_ratings',
-                          'napopravku.ru', 'napopravku.ru_rate', 'napopravku.ru_ratings', 'napopravku.ru_reviews',
-                          'topdent.ru', 'topdent.ru_rate', 'topdent.ru_ratings',
-                          'stomdoc.ru', 'stomdoc.ru_rate', 'stomdoc.ru_ratings',
-                          '32top.ru', '32top.ru_rate', '32top.ru_ratings',
-                          'moscow.flamp.ru', 'moscow.flamp.ru_rate', 'moscow.flamp.ru_ratings']]
-# df_other.drop(df_other.tail(1).index, inplace=True)
-df_other.fillna(-1, inplace=True)
-df_other['prodoctorov.ru_ratings'] = df_other['prodoctorov.ru_ratings'].astype(int)
-df_other['msk.stom-firms.ru_ratings'] = df_other['msk.stom-firms.ru_ratings'].astype(int)
+keys = ['zoon.ru', 'prodoctorov.ru', 'msk.stom-firms.ru', 'doctu.ru', 'napopravku.ru',
+        'topdent.ru', 'stomdoc.ru', '32top.ru', 'flamp.ru']
+dict_other = {key: dict_platforms[key] for key in keys}
+for value in dict_other.values():
+    value.fillna(-1, inplace=True)
+    value.drop('platform', axis=1, inplace=True)
+dict_other['prodoctorov.ru']['prodoctorov.ru_ratings'] = (dict_other['prodoctorov.ru']['prodoctorov.ru_ratings']
+                                                          .astype(int))
+dict_other['msk.stom-firms.ru']['msk.stom-firms.ru_ratings'] = (
+    dict_other['msk.stom-firms.ru']['msk.stom-firms.ru_ratings']
+    .astype(int))
 
 df_yandex.rename(columns={'link': 'yandex_link'}, inplace=True)
 df_google.rename(columns={'link': 'google_link'}, inplace=True)
 df_2gis.rename(columns={'link': '2gis_link'}, inplace=True)
 
-df_merged = pd.concat(
-    objs=(iDF.set_index('clinic') for iDF in (df_yandex, df_google, df_2gis)),
-    axis=1,
-    join='inner'
-).reset_index()
-
-df_final = pd.concat([df_merged, df_other], axis=1)
+df_oth = list(dict_other.values())  # делаем список из элементов словаря
+df_merged = [df_yandex, df_google, df_2gis, df_oth]  # список из датафреймов и одного вложенного списка
+chained = []  # раскрываем вложенный список на 1 уровень
+for item in df_merged:
+    if isinstance(item, list):
+        for subitem in item:
+            chained.append(subitem)
+    else:
+        chained.append(item)
+# объединение датафреймов из списка по столбцу клиники
+df_final = reduce(lambda left, right: pd.merge(left, right, on='clinic',
+                                               how='left', suffixes=(None, None)), chained)
 date_str = strftime("%Y-%m-%d")
 df_final.to_csv(f'workfiles/parsed_{date_str}.csv', index=False)

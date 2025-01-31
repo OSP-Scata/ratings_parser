@@ -12,3 +12,4 @@ __pycache__/
 *.zip
 *.bat
 !install.bat
+*.txt
