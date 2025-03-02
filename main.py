@@ -59,7 +59,7 @@ for i in range(len(parsed)):
         rate.append(parsed[i]['company_info']['rating'])
         ratings.append(parsed[i]['company_info']['count_rating'])
         reviews.append(len(parsed[i]['company_reviews']))
-    except KeyError:
+    except:
         rate.append(-1)
         ratings.append(-1)
         reviews.append(-1)
@@ -271,9 +271,13 @@ for url in tqdm(dict_platforms['stomdoc.ru']['stomdoc_link']):
     rate = get_content(response, 'div', 'class', 'b-clinic_page_heading_rating_wg_num')
     r_content = get_content(response, 'div', 'class', 'col-xs-24 col-sm-14 col-md-17 col-lg-19 '
                                                       'col-sm-vertical-middle col-md-vertical-middle col-lg-vertical-middle')
-    ratings = BeautifulSoup(str(r_content[1]), 'html.parser').get_text()
-    sd_rates.append(float(rate[0]))
-    sd_ratings.append(int(ratings.split(' ')[1]))
+    try:
+        ratings = BeautifulSoup(str(r_content[1]), 'html.parser').get_text()
+        sd_rates.append(float(rate[0]))
+        sd_ratings.append(int(ratings.split(' ')[1]))
+    except:
+        sd_rates.append(-1)
+        sd_ratings.append(-1)
     sleep(randint(1, 3))
 dict_platforms['stomdoc.ru']['stomdoc.ru_rate'] = sd_rates
 dict_platforms['stomdoc.ru']['stomdoc.ru_ratings'] = sd_ratings
