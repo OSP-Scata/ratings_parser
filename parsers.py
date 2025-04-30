@@ -60,7 +60,8 @@ def get_contents_google(response):
 
 
 def selenium_parsing(url, tag, parameter, name):
-    driver = uc.Chrome(headless=True)
+    driver = uc.Chrome()
+    driver.command_executor.set_timeout(1000)
     ua = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
           'Chrome/131.0.0.0 Safari/537.36')
     stealth(driver,
